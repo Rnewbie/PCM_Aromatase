@@ -9,8 +9,8 @@ Repos: CRAN=http://cran.rstudio.com,
 
 Package: AnnotationDbi
 Source: Bioconductor
-Version: 1.28.2
-Hash: 07df738e1f0c6c3924e3e3d3c5ec6d08
+Version: 1.28.1
+Hash: 38657d0dfc21cb7ae48f498e11212e42
 Requires: Biobase, BiocGenerics, DBI, GenomeInfoDb, RSQLite, S4Vectors
 
 Package: Biobase
@@ -26,8 +26,8 @@ Hash: 87ec9b94ce0544cb5730b6567d266994
 
 Package: BiocInstaller
 Source: Bioconductor
-Version: 1.16.2
-Hash: a0989445c36918fb37c12a2708065b75
+Version: 1.16.1
+Hash: 8772a5d8d140f2083669934c97975ae6
 
 Package: Biostrings
 Source: Bioconductor
@@ -43,14 +43,13 @@ Requires: brglm, gtools, lme4
 
 Package: C50
 Source: CRAN
-Version: 0.1.0-24
-Hash: 9ea218c2a6d384b5e6367ed3dca2ec3a
-Requires: partykit
+Version: 0.1.0-21
+Hash: efd6440ce33f1294fc18da5cba3ee125
 
 Package: ChemmineR
 Source: Bioconductor
-Version: 2.18.1
-Hash: d5401e619289e95dba4ecce598bc5633
+Version: 2.18.0
+Hash: 3c1c12f6ab6830d38a02c5b00d386d6e
 Requires: BiocGenerics, DBI, RCurl, Rcpp, digest, rjson
 
 Package: DBI
@@ -67,13 +66,13 @@ Requires: AnnotationDbi
 Package: GOSemSim
 Source: Bioconductor
 Version: 1.24.1
-Hash: 49438dee0883bc6e93b3a134fc8f13bc
+Hash: 7f4ebd077367f480b3d129cea455fdac
 Requires: AnnotationDbi, GO.db, Rcpp
 
 Package: GenomeInfoDb
 Source: Bioconductor
-Version: 1.2.5
-Hash: 52509a1421f972cce6cda6df51bd4dae
+Version: 1.2.4
+Hash: 9458c8925e751460f9d9da3c1da75f33
 Requires: BiocGenerics, IRanges, S4Vectors
 
 Package: IRanges
@@ -81,6 +80,11 @@ Source: Bioconductor
 Version: 2.0.1
 Hash: cafa694d528e8fd77e0273c8c05f3ffc
 Requires: BiocGenerics, S4Vectors
+
+Package: MASS
+Source: CRAN
+Version: 7.3-37
+Hash: 05cd8a6b7ebab5d30f3d95c8b26cbdf1
 
 Package: RColorBrewer
 Source: CRAN
@@ -125,13 +129,13 @@ Requires: Biostrings, ChemmineR, GOSemSim, RCurl, doParallel, fmcsR,
 
 Package: Rcpp
 Source: CRAN
-Version: 0.11.5
-Hash: 3e452cb48f3ec8a7cf27fb9ab8624639
+Version: 0.11.4
+Hash: 1f684f6afd28079e4e609b49f353e49f
 
 Package: RcppArmadillo
 Source: CRAN
-Version: 0.4.650.1.1
-Hash: 3968096522db814d2733de4d2b699224
+Version: 0.4.600.4.0
+Hash: 6d7bae5478db5054d7b1d702beb7738b
 Requires: Rcpp
 
 Package: RcppEigen
@@ -169,9 +173,9 @@ Requires: profileModel
 
 Package: car
 Source: CRAN
-Version: 2.0-25
-Hash: 913a72e0f36d7f21b8ed32e4fe3933bf
-Requires: pbkrtest, quantreg
+Version: 2.0-24
+Hash: 24279ae6abe84550e339dd947b720e05
+Requires: MASS, pbkrtest, quantreg
 
 Package: caret
 Source: CRAN
@@ -181,8 +185,8 @@ Requires: BradleyTerry2, car, foreach, ggplot2, plyr, reshape2
 
 Package: colorspace
 Source: CRAN
-Version: 1.2-6
-Hash: a53ddc5a49706984d234ea5cc209c8f0
+Version: 1.2-4
+Hash: b775bd08a10f968fef582304b7c3ab9c
 
 Package: corrplot
 Source: CRAN
@@ -224,9 +228,9 @@ Requires: iterators
 
 Package: ggplot2
 Source: CRAN
-Version: 1.0.1
-Hash: 06a8e5faacfd76c9e4ab11a5b7ad94d6
-Requires: digest, gtable, plyr, proto, reshape2, scales
+Version: 1.0.0
+Hash: c8bff66238347472f08b6a35608539ff
+Requires: MASS, digest, gtable, plyr, proto, reshape2, scales
 
 Package: gridExtra
 Source: CRAN
@@ -240,8 +244,8 @@ Hash: 0cf4a2b54c02b35dec7e74a8ebed12a0
 
 Package: gtools
 Source: CRAN
-Version: 3.4.2
-Hash: 732fe98ce2241bdb302605015725031b
+Version: 3.4.1
+Hash: e4c2510a4ba86b5826f05d9f3639cb13
 
 Package: iterators
 Source: CRAN
@@ -256,13 +260,13 @@ Hash: 568a992912caf7eeddfb121924154047
 Package: lme4
 Source: CRAN
 Version: 1.1-7
-Hash: 0663d04fd797da2580eddd3b1c920ab2
-Requires: Rcpp, RcppEigen, minqa, nloptr
+Hash: 1855ab0faa27e3250ce386420cf1c670
+Requires: MASS, Rcpp, RcppEigen, minqa, nloptr
 
 Package: minqa
 Source: CRAN
 Version: 1.2.4
-Hash: 458796870f58fde96e824382cc0e8d82
+Hash: bf5030834197a011dc7bc9e117ab8ce3
 Requires: Rcpp
 
 Package: munsell
@@ -284,18 +288,17 @@ Hash: 16c72d5c802629fae5a4abca901e0199
 Package: partykit
 Source: CRAN
 Version: 1.0-1
-Hash: 2dd8f0b4331388cb3912c27f8bf49b5e
 
 Package: pbkrtest
 Source: CRAN
 Version: 0.4-2
 Hash: d28676d1aaa5a988d968cdcb42661177
-Requires: lme4
+Requires: MASS, lme4
 
 Package: plyr
 Source: CRAN
 Version: 1.8.1
-Hash: 6a4457c04af4cf5e4a8166ff59bcfd96
+Hash: 7dd935ee4050eaf2973108be2faf245e
 Requires: Rcpp
 
 Package: png
@@ -311,7 +314,7 @@ Hash: 122950462321c92e539e4ab8ac2ffd58
 Package: prospectr
 Source: CRAN
 Version: 0.1.3
-Hash: 7d754d7576c2ef483443f0fa103f42d1
+Hash: b542a438d2bd678f5b0f9bf84c0056d8
 Requires: Rcpp, RcppArmadillo, foreach, iterators
 
 Package: proto
@@ -345,7 +348,7 @@ Requires: rJava
 Package: reshape2
 Source: CRAN
 Version: 1.4.1
-Hash: d3d77b083fd5485f674487aa23011ea7
+Hash: c401ef665db07687e1e54fbc60c683bb
 Requires: Rcpp, plyr, stringr
 
 Package: rjson
