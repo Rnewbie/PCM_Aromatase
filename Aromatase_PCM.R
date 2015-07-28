@@ -296,6 +296,7 @@ results_QSAR_PLS_Training <- lapply(QSAR_input, function(x) {
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
   tune <- suppressWarnings(train(x = data[, 2:length(data)], y = data[, 1],
                                  method = "pls", tuneLength = 10, trControl = ctrl))
+  ok <- list(100)
   for (i in 1:100) {
     sel <- naes(data, k = 7, pc = 5, iter.max = 100)
   Train <- data[sel$model, ]
@@ -305,7 +306,7 @@ results_QSAR_PLS_Training <- lapply(QSAR_input, function(x) {
   value <- data.frame(obs = Train$pIC50, pred = prediction)
   labeling <- c("obs", "pred")
   colnames(value) <- labeling
-  ok <- defaultSummary(value)
+  ok[[i]] <- defaultSummary(value)
   }
   data <- data.frame(ok)
   result <- mean_and_sd(data)
@@ -323,6 +324,7 @@ results_QSAR_PLS_testing <- lapply(QSAR_input, function(x) {
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
   tune <- suppressWarnings(train(x = data[, 2:length(data)], y = data[, 1],
                                  method = "pls", tuneLength = 10, trControl = ctrl))
+  ok <- list(100)
   for (i in 1:100) {
     sel <- naes(data, k = 7, pc = 5, iter.max = 100)
     Train <- data[sel$model, ]
@@ -332,7 +334,7 @@ results_QSAR_PLS_testing <- lapply(QSAR_input, function(x) {
     value <- data.frame(obs = Test$pIC50, pred = prediction)
     labeling <- c("obs", "pred")
     colnames(value) <- labeling
-    ok <- defaultSummary(value)
+    ok[[i]] <- defaultSummary(value)
   }
     data <- data.frame(ok)
     result <- mean_and_sd(data)
@@ -347,6 +349,7 @@ results_QSAR_PLS_testing <- lapply(QSAR_input, function(x) {
 results_QSAR_PLS_10_fold_CV <- lapply(QSAR_input, function(x) {
   data <- subset(QSAR_data, compound_index = "x")
   data <- data[, 2:length(data)]
+  ok <- list(100)
   for (i in 1:100) {
     sel <- naes(data, k = 7, pc = 5, iter.max = 100)
     myData <- data[sel$model, ]
@@ -366,7 +369,7 @@ results_QSAR_PLS_10_fold_CV <- lapply(QSAR_input, function(x) {
     value <- data.frame(obs = testing$pIC50, pred = prediction)
     labeling <- c("obs", "pred")
     colnames(value) <- labeling
-    ok <- defaultSumary(value)
+    ok[[i]] <- defaultSumary(value)
   }
   data <- data.frame(ok)
   result <- mean_and_sd(data)
