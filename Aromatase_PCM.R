@@ -278,6 +278,108 @@ results_PLS_LOPO <- lapply(input, function(x) {
   return(models)
 })
 
+#### Models for each compounds
+data <- read_excel("aromatase_data.xlsx")
+compound_index <- data$Compound
+compound <- data[, 5:311]
+QSAR_data <- cbind(compound_index, pIC50, compound)
+subs <- unique(QSAR_data$compound_index)
+
+QSAR_input <- list(OHA = "4_OHA", alphaAPTADD = "7alpha-APTADD", AG = "AG", 
+                     CGS20267 = "CGS20267", ICID1033 = "ICID1033", MDL101003 = "MDL101003", 
+                   MR20492 = "MR20492", MR20494 = "MR20494", MR20814 = "MR20814", Vorozole= "Vorozole")
+
+
+results_QSAR_PLS_Training <- lapply(QSAR_input, function(x) {
+  data <- subset(QSAR_data, compound_index = "x")
+  data <- data[, 2:length(data)]
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- suppressWarnings(train(x = data[, 2:length(data)], y = data[, 1],
+                                 method = "pls", tuneLength = 10, trControl = ctrl))
+  for (i in 1:100) {
+    sel <- naes(data, k = 7, pc = 5, iter.max = 100)
+  Train <- data[sel$model, ]
+  Test <- data[sel$test, ]
+  model <- plsr(pIC50~., data = Train, ncomp = 1)
+  prediction <- predict(model, Train, ncomp = 1)
+  value <- data.frame(obs = Train$pIC50, pred = prediction)
+  labeling <- c("obs", "pred")
+  colnames(value) <- labeling
+  ok <- defaultSummary(value)
+  }
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+})
+
+### Testing
+results_QSAR_PLS_testing <- lapply(QSAR_input, function(x) {
+  data <- subset(QSAR_data, compound_index = "x")
+  data <- data[, 2:length(data)]
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- suppressWarnings(train(x = data[, 2:length(data)], y = data[, 1],
+                                 method = "pls", tuneLength = 10, trControl = ctrl))
+  for (i in 1:100) {
+    sel <- naes(data, k = 7, pc = 5, iter.max = 100)
+    Train <- data[sel$model, ]
+    Test <- data[sel$test, ]
+    model <- plsr(pIC50~., data = Train, ncomp = 1)
+    prediction <- predict(model, Test, ncomp = 1)
+    value <- data.frame(obs = Test$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    ok <- defaultSummary(value)
+  }
+    data <- data.frame(ok)
+    result <- mean_and_sd(data)
+    df <- data.frame(result)
+    R2_and_RMSE <- t(df)
+    label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+    colnames(R2_and_RMSE) <- label
+    return(R2_and_RMSE)
+})
+
+
+results_QSAR_PLS_10_fold_CV <- lapply(QSAR_input, function(x) {
+  data <- subset(QSAR_data, compound_index = "x")
+  data <- data[, 2:length(data)]
+  for (i in 1:100) {
+    sel <- naes(data, k = 7, pc = 5, iter.max = 100)
+    myData <- data[sel$model, ]
+    Test <- data[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    tune <- suppressWarnings(train(pIC50 ~., data = training,
+                                   method = "pls", tunLength = 10, trControl = ctrl))
+    model <- plsr(pIC5~., data = training, ncomp = 1)
+    prediction <- predict(model, testing, ncomp = 1)
+    value <- data.frame(obs = testing$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    ok <- defaultSumary(value)
+  }
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+})
+
+
+
+
 
 
 
