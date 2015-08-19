@@ -381,7 +381,43 @@ results_QSAR_PLS_10_fold_CV <- lapply(QSAR_input, function(x) {
   return(R2_and_RMSE)
 })
 
+### PLS Coefficient
+pls_Coefficient <- function(x){
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    tune <- train(pIC50 ~., data = training, method = "pls", tuneLength = 10, trControl = ctrl)
+    model <- plsr(pIC50~., data = training, ncomp = tune$bestTune[[1]])
+    ok <- model$coefficients
+    yay <- data.frame(ok)
+    myRes <- rbind(myRes, yay)
+    mean <- apply(data.frame(myRes), 1, mean)
+    sd <- apply(data.frame(myRes), 1, sd)
+    results[[i]] <- cbind(mean, sd)
+  }
+  return(results)
+}
 
+
+coefficient_input <- list(C_P = C_P, C_P_CxP_CxC = C_P_CxP_CxC, C_P_CxP_CxC_PxP = C_P_CxP_CxC_PxP)
+coefficient_input <- list(C_P = C_P)
+
+
+set.seed(39)
+results_PLS_coefficient <- lapply(coefficient_input, function(x) {
+  models <- pls_Coefficient(x)
+  return(models)
+})
 
 
 
