@@ -863,3 +863,36 @@ C_P_CxP_PxP <- cbind(pIC50, output_descriptors_filtered$C_P_CxP_PxP_data_block_s
 C_P_CxC_PxP <- cbind(pIC50, output_descriptors_filtered$C_P_CxC_PxP_data_block_scale)
 C_P_CxP_CxC_PxP <- cbind(pIC50, output_descriptors_filtered$C_P_CxP_CxC_PxP_data_block_scale)
 
+
+### Maris Question
+data <- read_excel("aromatase_data.xlsx")
+compound <- data[, 5:311]
+set.seed(122)
+compound = compound[, -nearZeroVar(compound)]
+compound[compound == "0"] <- -1
+
+compoundname <- as.character(unique(data$Compound))
+dataframe <- cbind(Compound = data$Compound, compound)
+sample_compound <- function(x) {
+  myRef  <- data.frame()
+  for (i in compoundname) {
+    index_data <- which(x$Compound == i)
+    ok <- x[index_data, ]
+    sample <- sample_n(ok, size = 1, replace = TRUE)
+    myRef <- rbind(myRef, sample)
+  }
+  return(myRef)
+}
+df <- sample_compound(dataframe)[, 2:length(dataframe)]
+set.seed(2000)
+df = df[, -nearZeroVar(df)]
+scores <- pca$x[,1:5]
+loadings <- pca$rotation[,1:5]
+km <- kmeans(scores, center=2, nstart=5)
+ggdata <- data.frame(scores, Cluster=km$cluster)
+compoundnumber <- c(4, 5, 6, 10, 2, 1, 3, 8, 9, 7)
+ggdata <- cbind(compoundnumber, ggdata)
+write.csv(ggdata[, 1:3], file = "PCA_scores.csv", row.names = FALSE)
+
+
+
