@@ -15,10 +15,10 @@ compound = compound[, -nearZeroVar(compound)]
 compound[compound == "0"] <- -1
 CxP <- getCPI(compound, protein, type = "tensorprod")
 CxP <- as.data.frame(CxP)
-dfcompound <- names(data.frame(compound[,1:37]))
+dfcompound <- names(data.frame(compound[,1:39]))
 dfprotein <- colnames(protein)
 compoundNamecross <- rep(dfcompound, each = 39)
-proteinNamecross <- rep(dfprotein, times = 37)
+proteinNamecross <- rep(dfprotein, times = 39)
 label <- paste(compoundNamecross, proteinNamecross, sep="_")
 colnames(CxP) <- label
 PxP <- getCPI(protein, protein, type = "tensorprod")
@@ -34,11 +34,11 @@ removed_duplicated_protein <- transposedIndexed_protein[-index1, ]
 PxP <- t(removed_duplicated_protein)
 
 CxC <- getCPI(compound, compound, type = "tensorprod")
-compoundName2 <- rep(dfcompound, times = 37)
-compoundName1 <- rep(dfcompound, each = 37)
+compoundName2 <- rep(dfcompound, times = 39)
+compoundName1 <- rep(dfcompound, each = 39)
 label <- paste(compoundName1, compoundName2, sep = "_")
 colnames(CxC) <- label
-index3 <- seq(1, 1369, by = 38)
+index3 <- seq(1, 1521, by = 40)
 compound_selfcross <- CxC[, -index3]
 transposedIndexed_compound <- t(compound_selfcross)
 index4 <- which(duplicated(transposedIndexed_compound))
@@ -894,5 +894,10 @@ compoundnumber <- c(4, 5, 6, 10, 2, 1, 3, 8, 9, 7)
 ggdata <- cbind(compoundnumber, ggdata)
 write.csv(ggdata[, 1:3], file = "PCA_scores.csv", row.names = FALSE)
 
+data <- read.csv("aromatase.csv", header = TRUE)
 
-
+data <- data[-1]
+data <- data[, -nearZeroVar(data)]
+pca <- prcomp(data, retx=TRUE,scale.=TRUE)
+scores <- pca$x[,1:5]
+write.csv(scores, file = "pca_scores.csv")
