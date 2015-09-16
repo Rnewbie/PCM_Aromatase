@@ -445,7 +445,7 @@ sample_compound <- function(x) {
 }
 df <- sample_compound(dataframe)[, 2:length(dataframe)]
 set.seed(2000)
-df = df[, -nearZeroVar(df)]
+#df = df[, -nearZeroVar(df)]
 ### optium PC with Horn's Parallel Analysis
 paran(df, iterations = 5000)
 df.sc <- scale(df)
@@ -491,7 +491,7 @@ x <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  #geom_text(aes(label=compoundnumber), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  geom_text(aes(label=compoundnumber), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -510,7 +510,7 @@ data <- read_excel("aromatase_data.xlsx")
 compound <- data[, 5:311]
 set.seed(122)
 compound = compound[, -nearZeroVar(compound)]
-compound[compound == "0"] <- -1
+#compound[compound == "0"] <- -1
 
 compoundname <- as.character(unique(data$Compound))
 dataframe <- cbind(Compound = data$Compound, compound)
@@ -526,7 +526,7 @@ sample_compound <- function(x) {
 }
 df <- sample_compound(dataframe)[, 2:length(dataframe)]
 set.seed(2000)
-df = df[, -nearZeroVar(df)]
+#df = df[, -nearZeroVar(df)]
 pca <- prcomp(df, retx=TRUE,scale.=TRUE)
 scores <- pca$x[,1:5]
 set.seed(300)
@@ -544,7 +544,7 @@ a <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  #geom_text(aes(label=labelcompound), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  geom_text(aes(label=labelcompound), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -612,7 +612,7 @@ y <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  #geom_text(aes(label=proteinname), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  geom_text(aes(label=proteinname), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
    # plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -665,7 +665,7 @@ b <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  #geom_text(aes(label=labelprotein), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  geom_text(aes(label=labelprotein), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -883,14 +883,17 @@ sample_compound <- function(x) {
   }
   return(myRef)
 }
-df <- sample_compound(dataframe)[, 2:length(dataframe)]
+df <- sample_compound(dataframe)
+compoundnumber <- df$Compound
+df <- df[, 2:length(dataframe)]
 set.seed(2000)
-df = df[, -nearZeroVar(df)]
+#df = df[, -nearZeroVar(df)]
+pca <- prcomp(df, retx=TRUE,scale.=TRUE)
 scores <- pca$x[,1:5]
 loadings <- pca$rotation[,1:5]
 km <- kmeans(scores, center=2, nstart=5)
 ggdata <- data.frame(scores, Cluster=km$cluster)
-compoundnumber <- c(4, 5, 6, 10, 2, 1, 3, 8, 9, 7)
+compoundnumber <- c(1, 6, 2, 3, 4, 10, 5, 9, 7, 8)
 ggdata <- cbind(compoundnumber, ggdata)
 write.csv(ggdata[, 1:3], file = "PCA_scores.csv", row.names = FALSE)
 
