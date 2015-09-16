@@ -491,7 +491,7 @@ x <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  geom_text(aes(label=compoundnumber), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  #geom_text(aes(label=compoundnumber), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -544,7 +544,7 @@ a <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  geom_text(aes(label=labelcompound), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  #geom_text(aes(label=labelcompound), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -612,7 +612,7 @@ y <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  geom_text(aes(label=proteinname), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  #geom_text(aes(label=proteinname), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
    # plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -665,7 +665,7 @@ b <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
   stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
                geom="polygon", level=0.95, alpha=0.2) +
   guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
-  geom_text(aes(label=labelprotein), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  #geom_text(aes(label=labelprotein), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
   theme(
     legend.position=("none"),
     #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
@@ -904,3 +904,51 @@ data <- data[, -nearZeroVar(data)]
 pca <- prcomp(data, retx=TRUE,scale.=TRUE)
 scores <- pca$x[,1:5]
 write.csv(scores, file = "pca_scores.csv")
+
+
+#### randomForest Gini feature importance
+#### function for coreelation removed
+cor_removed <- function(x) {
+  x <- x[, !apply(x, 2, function(X) length(unique(x)) ==1)]
+  raw <- cor(x)
+  raw_2 <- raw[1:ncol(raw), 1:ncol(raw)]
+  high <- findCorrelation(raw_2, cutoff = 0.7)
+  remove <- x[, -high]
+  input <- cbind(pIC50, remove)
+  return(input)
+}
+
+### preparing for data set
+C_P_CxP_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
+
+randomForest_feature_importance <- function(x) {
+  library(doSnow)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(2)
+  registerDoSnow(cl)
+  
+  results <- list(100)
+  results <- foreach (i = 1:100) %dopar% {
+    sel <- prospectr::naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sampel(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    ctrl <- caret::trainControl(method = "repeadcv", number = 10, repeats = 5)
+    for (j in 1:k) 
+      training <- subet(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    tune <- caret::train(pIC50~., data = training, method = "rf", tuneLength = 10,
+                         trControl = ctrl)
+    model <- randomForest::randomForest(pIC50~., data = training, importance = TRUE,
+                                        mtry = tune$bestTune[[1]])
+    importance <- model$importance
+    gini <- importance[5]
+    myRes <- rbind(myRes, gini)
+    results[[i]] <- myRes
+  }
+  return(results)
+}
