@@ -1,0 +1,1129 @@
+---
+Mtitle: Unraveling the origin of aromatase inhibitory activity via proteochemometrics
+  modeling
+author: "Saw Simeon, Sunanta Nabu, Naravut Suvannang, Ola Spjuth, Maris Lapins, Virapong Prachayasittikul, Jar E.S. Wikberg, Chanin Nantasenamat"
+date: "September 18, 2015"
+output: html_document
+---
+
+Initialize:
+```{r init, message = FALSE}
+library(readxl); packageVersion("readxl")
+library(prospectr); packageVersion("prospectr")
+library(Rcpi); packageVersion("Rcpi")
+library(caret); packageVersion("caret")
+library(pls); packageVersion("pls")
+library(genefilter); packageVersion("genefilter")
+library(ggplot2); packageVersion("ggplot2")
+library(grid); packageVersion("grid")
+library(cowplot); packageVersion("cowplot")
+library(ridge); packageVersion("ridge")
+library(randomForest); packageVersion("randomForest")
+library(XLConnect); packageVersion("XLConnect")
+library(XLConnectJars); packageVersion("XLConnectJars")
+library(RCurl); packageVersion("RCurl")
+library(paran); packageVersion("paran")
+library(dplyr); packageVersion("dplyr")
+library(doSNOW); packageVersion("doSNOW")
+library(doParallel); packageVersion("doParallel")
+library(parallel); packageVersion("parallel")
+library(gtools); packageVersion("gtools")
+library(reshape); packageVersion("reshape")
+```
+Load data:
+```{r load-data, message = FALSE}
+url <- "https://raw.githubusercontent.com/Rnewbie/PCM_Aromatase/master/aromatase_data.xlsx"
+f = CFILE("data.xlsx", mode = "wb")
+curlPerform(url = url, writedata = f@ref, ssl.verifypeer = FALSE)
+close(f)
+out <- readWorksheetFromFile(file = "data.xlsx", sheet = "Sheet1", header = TRUE,
+                             startRow = 11, startCol = 2, endCol = 15, endRow = 35)
+head(out)
+data <- read_excel("data.xlsx")
+```
+Preapring the data set for 13 PCM models
+```{r preprocess, message = FALSE}
+### preparing data for 13 models 
+compound <- data[, 5:311]
+protein <- data[, 313:351]
+pIC50 <- data[2]
+set.seed(23)
+compound = compound[, -nearZeroVar(compound)]
+compound[compound == "0"] <- -1
+CxP <- getCPI(compound, protein, type = "tensorprod")
+CxP <- as.data.frame(CxP)
+dfcompound <- names(data.frame(compound[,1:39]))
+dfprotein <- names(data.frame(protein[,1:39]))
+compoundNamecross <- rep(dfcompound, each = 39)
+proteinNamecross <- rep(dfprotein, times = 39)
+label <- paste(compoundNamecross, proteinNamecross, sep="_")
+colnames(CxP) <- label
+PxP <- getCPI(protein, protein, type = "tensorprod")
+proteinName2 <- rep(dfprotein, times = 39)
+proteinName1 <- rep(dfprotein, each = 39)
+label_protein <- paste(proteinName1, proteinName2, sep = "_")
+colnames(PxP) <- label_protein
+index <- seq(1, 1521, by = 40)
+protein_selfcross <- PxP[, -index]
+transposedIndexed_protein <- t(protein_selfcross)
+index1 <- which(duplicated(transposedIndexed_protein))
+removed_duplicated_protein <- transposedIndexed_protein[-index1, ]
+PxP <- t(removed_duplicated_protein)
+
+CxC <- getCPI(compound, compound, type = "tensorprod")
+compoundName2 <- rep(dfcompound, times = 39)
+compoundName1 <- rep(dfcompound, each = 39)
+label <- paste(compoundName1, compoundName2, sep = "_")
+colnames(CxC) <- label
+index3 <- seq(1, 1369, by = 38)
+compound_selfcross <- CxC[, -index3]
+transposedIndexed_compound <- t(compound_selfcross)
+index4 <- which(duplicated(transposedIndexed_compound))
+removed_compound <- transposedIndexed_compound[-index4, ]
+compound_finalcrossterms <- t(removed_compound)
+CxC <- compound_finalcrossterms
+
+C <- compound
+P <- protein
+C_P <- cbind(C, P)
+C_P_CxP_data_block_scale <- cbind(C, P, CxP) * (1/sqrt(length(C)+length(P)+length(CxP)))
+C_P_CxC_data_block_scale <- cbind(C, P, 
+                                  CxC) * (1/sqrt(length(C)+length(P)+length(CxC)))
+C_P_PxP_data_block_scale <- cbind(C, P,
+                                  PxP) * (1/sqrt(length(C)+length(P)+length(PxP)))
+C_P_CxP_CxC_data_block_scale <- cbind(C, P, CxP,
+                                      CxC) * (1/sqrt(length(C)+length(P)+length(CxP)+length(CxC)))
+C_P_CxP_PxP_data_block_scale <- cbind(C, P, CxP,
+                                      PxP) * (1/sqrt(length(C)+length(P)+length(CxP)+length(PxP)))
+C_P_CxC_PxP_data_block_scale <- cbind(C, P, CxC,
+                                      PxP) * (1/sqrt(length(C)+length(P)+length(CxC)+length(PxP)))
+C_P_CxP_CxC_PxP_data_block_scale <- cbind(C, P, CxP, CxC, PxP) * (1/sqrt(length(C)+length(P)+
+                                                                           length(CxC)+length(PxP)))
+
+C <- cbind(pIC50, C)
+P <- cbind(pIC50, P)
+CxP <- cbind(pIC50, CxP)
+CxC <- cbind(pIC50, CxC)
+PxP <- cbind(pIC50, PxP)
+C_P <- cbind(pIC50, C_P)
+C_P_CxP <- cbind(pIC50, C_P_CxP_data_block_scale)
+C_P_CxC <- cbind(pIC50, C_P_CxC_data_block_scale)
+C_P_PxP <- cbind(pIC50, C_P_PxP_data_block_scale)
+C_P_CxP_CxC <- cbind(pIC50, C_P_CxP_CxC_data_block_scale)
+C_P_CxP_PxP <- cbind(pIC50, C_P_CxP_PxP_data_block_scale)
+C_P_CxC_PxP <- cbind(pIC50, C_P_CxC_PxP_data_block_scale)
+C_P_CxP_CxC_PxP <- cbind(pIC50, C_P_CxP_CxC_PxP_data_block_scale)
+```
+Function for trianing PLS Model
+```{r training_pls, message = FALSE}
+pls_training <- function(x){
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50 ~., data = x,  method = "pls", tuneLength = 10,
+                trControl = ctrl)
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    model <- plsr(pIC50~., data = Train, ncomp = tune$bestTune[[1]])
+    prediction <- predict(model, Train, ncomp = tune$bestTune[[1]])
+    value <- data.frame(obs = Train$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+mean_and_sd <- function(x) {
+  c(round(rowMeans(x, na.rm = TRUE), digits = 4),
+    round(genefilter::rowSds(x, na.rm = TRUE), digits = 4))
+}
+
+pls_train <- function(x) {
+  ok <- pls_training(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for trianing PLS Model 10-fold cross-validation
+```{r CV_pls, message = FALSE}
+pls_cross_validation <- function(x){
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    tune <- train(pIC50 ~., data = training,  method = "pls", tuneLength = 10,
+                  trControl = ctrl)
+    model <- plsr(pIC50~., data = training, ncomp = tune$bestTune[[1]])
+    prediction <- predict(model, testing, ncomp = tune$bestTune[[1]])
+    ok <- data.frame(obs = testing$pIC50, pred = prediction)
+    value <- rbind(myRes, ok)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+pls_10_CV <- function(x) {
+  ok <- pls_cross_validation(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+Function for PLS Model testing
+```{r testing_pls, message = FALSE}
+pls_cross_validation <- function(x){
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    tune <- train(pIC50 ~., data = training,  method = "pls", tuneLength = 10,
+                  trControl = ctrl)
+    model <- plsr(pIC50~., data = training, ncomp = tune$bestTune[[1]])
+    prediction <- predict(model, testing, ncomp = tune$bestTune[[1]])
+    ok <- data.frame(obs = testing$pIC50, pred = prediction)
+    value <- rbind(myRes, ok)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+pls_10_CV <- function(x) {
+  ok <- pls_cross_validation(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for ridge Model training
+```{r training_ridge, message = FALSE}
+ridge_training <- function(x){
+  library(ridge)
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50 ~., data = x,  method = "foba", tuneLength = 10,
+                trControl = ctrl)
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    model <- linearRidge(pIC50~., 
+                         data = Train, scaling = "none",
+                         lambda = tune$bestTune$lambda[[1]])
+    prediction <- predict(model, Train)
+    value <- data.frame(obs = Train$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+mean_and_sd <- function(x) {
+  c(round(rowMeans(x, na.rm = TRUE), digits = 4),
+    round(genefilter::rowSds(x, na.rm = TRUE), digits = 4))
+}
+
+ridge_train <- function(x) {
+  ok <- ridge_training(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+Function for ridge model 10-fold CV
+```{r CV_ridge, message = FALSE}
+ridge_cross_validation <- function(x){
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    tune <- train(pIC50 ~., data = training,  method = "foba", tuneLength = 10,
+                  trControl = ctrl)
+    model <- linearRidge(pIC50~., scaling = "none", 
+                         data = training, lambda = tune$bestTune$lambda[[1]])
+    prediction <- predict(model, testing)
+    ok <- data.frame(obs = testing$pIC50, pred = prediction)
+    value <- rbind(myRes, ok)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+ridge_10_CV <- function(x) {
+  ok <- ridge_cross_validation(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for ridge model testing
+```{r testing_ridge, message = FALSE}
+ridge_testing <- function(x){
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50 ~., data = x,  method = "foba", tuneLength = 10,
+                trControl = ctrl)
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    model <- linearRidge(pIC50~., data = Train, scaling = "none",
+                         lambda = tune$bestTune$lambda[[1]])
+    prediction <- predict(model, Test)
+    value <- data.frame(obs = Test$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+ridge_test <- function(x) {
+  ok <- ridge_testing(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for Random Forest model training
+```{r training_RF, message = FALSE}
+randomForest_training <- function(x){
+  library(randomForest)
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50 ~., data = x,  method = "rf", tuneLength = 10,
+                trControl = ctrl)
+  results <- list(100)
+  for (i in 1:100) {
+    sel <- naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    model <- randomForest(pIC50~., 
+                         data = Train,
+                         mtry = tune$bestTune[[1]])
+    prediction <- predict(model, Train)
+    value <- data.frame(obs = Train$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- defaultSummary(value)
+  }
+  return(results)
+}
+
+mean_and_sd <- function(x) {
+  c(round(rowMeans(x, na.rm = TRUE), digits = 4),
+    round(genefilter::rowSds(x, na.rm = TRUE), digits = 4))
+}
+
+randomForest_train <- function(x) {
+  ok <- randomForest_training(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for Random Forest 10-fold Cross Validation
+```{r CV_RF, message = FALSE}
+randomForest_cross_validation <- function(x){
+  library(doSNOW)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(8)
+  registerDoSNOW(cl)
+  
+  results <- list(100)
+  results <- foreach (i=1:100) %dopar% {
+    sel <- prospectr::naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    k = 10
+    index <- sample(1:k, nrow(myData), replace = TRUE)
+    folds <- 1:k
+    myRes <- data.frame()
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    for (j in 1:k)
+      training <- subset(myData, index %in% folds[-j])
+    testing <- subset(myData, index %in% c(j))
+    tune <- caret::train(pIC50 ~., data = training,  method = "rf", tuneLength = 10,
+                  trControl = ctrl)
+    model <- randomForest::randomForest(pIC50~., scaling = "none", 
+                         data = training, mtry = tune$bestTune[[1]])
+    prediction <- predict(model, testing)
+    ok <- data.frame(obs = testing$pIC50, pred = prediction)
+    value <- rbind(myRes, ok)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- caret::defaultSummary(value)
+  }
+  return(results)
+  stopCluster(cl)
+}
+
+randomForest_10_CV <- function(x) {
+  ok <- randomForest_cross_validation(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+
+Function for Random Forest external testing
+```{r testing_RF, message = FALSE}
+randomForest_testing <- function(x){
+  ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- caret::train(pIC50 ~., data = x,  method = "rf", tuneLength = 10,
+                trControl = ctrl)
+  library(doSNOW)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(8)
+  registerDoSNOW(cl)
+  
+  results <- list(100)
+  results <- foreach (i=1:100) %dopar% {
+    sel <- prospectr::naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    model <- randomForest::randomForest(pIC50~., data = Train,
+                         mtry = tune$bestTune[[1]])
+    prediction <- predict(model, Test)
+    value <- data.frame(obs = Test$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- caret::defaultSummary(value)
+  }
+  return(results)
+  stopCluster(cl)
+}
+
+randomForest_test <- function(x) {
+  ok <- randomForest_testing(x)
+  data <- data.frame(ok)
+  result <- mean_and_sd(data)
+  df <- data.frame(result)
+  R2_and_RMSE <- t(df)
+  label <- c("RMSE_Mean", "Rsquared_Mean", "RMSE_SD", "Rsquared_SD")
+  colnames(R2_and_RMSE) <- label
+  return(R2_and_RMSE)
+}
+```
+Principal Component Analysis Score Plot (Compound)
+```{r PCA_score_compound, message = FALSE}
+data <- read_excel("data.xlsx")
+compound <- data[, 5:311]
+set.seed(122)
+compound = compound[, -nearZeroVar(compound)]
+compoundname <- as.character(unique(data$Compound))
+dataframe <- cbind(Compound = data$Compound, compound)
+sample_compound <- function(x) {
+  myRef  <- data.frame()
+  for (i in compoundname) {
+    index_data <- which(x$Compound == i)
+    ok <- x[index_data, ]
+    sample <- sample_n(ok, size = 1, replace = TRUE)
+    myRef <- rbind(myRef, sample)
+  }
+  return(myRef)
+}
+df <- sample_compound(dataframe)[, 2:length(dataframe)]
+set.seed(2000)
+pca <- prcomp(df, retx=TRUE,scale.=TRUE)
+scores <- pca$x[,1:5]
+loadings <- pca$rotation[,1:5]
+km <- kmeans(scores, center=2, nstart=5)
+ggdata <- data.frame(scores, Cluster=km$cluster)
+set.seed(23)
+x <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
+  geom_point(aes(fill=factor(Cluster)), size=5, shape=20, pch = 21, alpha = 0.8) +
+  ggtitle(" ") +
+  stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
+               geom="polygon", level=0.95, alpha=0.2) +
+  guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
+  #geom_text(aes(label=compoundnumber), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  theme(
+    legend.position=("none"),
+    #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1),
+    axis.text.y = element_text(size = 15),
+    axis.ticks.length = unit(0.3, "cm"),
+    axis.text.x = element_text(size = 15),
+    legend.title=element_blank(),
+    axis.title.x = element_text(color="black", size=20),
+    axis.title.y = element_text(color="black", size=20)) +
+  coord_cartesian(ylim = c(-15, 15), xlim = c(-15, 15))
+print(x)
+# MUST MANUALLY SAVE
+```
+Principal Component Analysis Loading Plot (Compound)
+```{r PCA_loading_compound, message = FALSE}
+data <- read_excel("data.xlsx")
+compound <- data[, 5:311]
+set.seed(122)
+compound = compound[, -nearZeroVar(compound)]
+
+compoundname <- as.character(unique(data$Compound))
+dataframe <- cbind(Compound = data$Compound, compound)
+sample_compound <- function(x) {
+  myRef  <- data.frame()
+  for (i in compoundname) {
+    index_data <- which(x$Compound == i)
+    ok <- x[index_data, ]
+    sample <- sample_n(ok, size = 1, replace = TRUE)
+    myRef <- rbind(myRef, sample)
+  }
+  return(myRef)
+}
+df <- sample_compound(dataframe)[, 2:length(dataframe)]
+set.seed(2000)
+pca <- prcomp(df, retx=TRUE,scale.=TRUE)
+scores <- pca$x[,1:5]
+set.seed(300)
+loadings <- pca$rotation[,1:5]
+km <- kmeans(loadings, center=3, nstart=5)
+ggdata <- data.frame(loadings, Cluster=km$cluster)
+labelcompound <- rownames(loadings)
+ggdata <- cbind(labelcompound, ggdata)
+### paper numbering
+library(grid)
+set.seed(23)
+a <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
+  geom_point(aes(fill=factor(Cluster)), size=5, shape=20, pch = 21, alpha = 0.8) +
+  ggtitle(" ") +
+  stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
+               geom="polygon", level=0.95, alpha=0.2) +
+  guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
+  #geom_text(aes(label=labelcompound), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  theme(
+    legend.position=("none"),
+    #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1),
+    axis.text.y = element_text(size = 15),
+    axis.ticks.length = unit(0.3, "cm"),
+    axis.text.x = element_text(size = 15),
+    legend.title=element_blank(),
+    axis.title.x = element_text(color="black", size=20),
+    axis.title.y = element_text(color="black", size=20)) +
+  coord_cartesian(ylim = c(-0.8, 0.8), xlim = c(-0.8, 0.8))
+print(a)
+```
+
+Principal Component Analysis Score Plot (Protein)
+```{r PCA_score_protein, message = FALSE}
+data <- read_excel("data.xlsx")
+protein <- data[, 313:351]
+set.seed(200)
+proteinname <- as.character(unique(data$Protein))
+dataframe <- cbind(Protein = data$Protein, protein)
+sample_protein <- function(x) {
+  myRef  <- data.frame()
+  for (i in proteinname) {
+    index_data <- which(x$Protein == i)
+    ok <- x[index_data, ]
+    sample <- sample_n(ok, size = 1, replace = TRUE)
+    myRef <- rbind(myRef, sample)
+  }
+  return(myRef)
+}
+df <- sample_protein(dataframe)[, 2:length(dataframe)]
+set.seed(100)
+df = df[, -nearZeroVar(df)]
+pca <- prcomp(df, retx=TRUE,scale.=TRUE)
+scores <- pca$x[,1:5]
+loadings <- pca$rotation[,1:5]
+km <- kmeans(scores, center=1, nstart=5)
+ggdata <- data.frame(scores, Cluster=km$cluster)
+ggdata <- cbind(proteinname, ggdata)
+### paper numbering
+library(grid)
+set.seed(2300)
+y <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
+  geom_point(aes(fill=factor(Cluster)), size=5, shape=20, pch = 21, alpha = 0.8) +
+  ggtitle(" ") +
+  stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
+               geom="polygon", level=0.95, alpha=0.2) +
+  guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
+  #geom_text(aes(label=proteinname), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  theme(
+    legend.position=("none"),
+   # plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1),
+    axis.text.y = element_text(size = 15),
+    axis.ticks.length = unit(0.3, "cm"),
+    axis.text.x = element_text(size = 15),
+    legend.title=element_blank(),
+    axis.title.x = element_text(color="black", size=20),
+    axis.title.y = element_text(color="black", size=20)) +
+  coord_cartesian(ylim = c(-5, 5), xlim = c(-5, 5))
+print(y)
+```
+
+Principal Component Analysis Loading Plot (Protein)
+```{r PCA_loading_protein, message = FALSE}
+### loading plot
+protein <- data[, 313:351]
+set.seed(200)
+proteinname <- as.character(unique(data$Protein))
+dataframe <- cbind(Protein = data$Protein, protein)
+sample_protein <- function(x) {
+  myRef  <- data.frame()
+  for (i in proteinname) {
+    index_data <- which(x$Protein == i)
+    ok <- x[index_data, ]
+    sample <- sample_n(ok, size = 1, replace = TRUE)
+    myRef <- rbind(myRef, sample)
+  }
+  return(myRef)
+}
+df <- sample_protein(dataframe)[, 2:length(dataframe)]
+set.seed(100)
+df = df[, -nearZeroVar(df)]
+column_names <- colnames(df)
+label_names2 <- gsub("zscl", "z", column_names)
+colnames(df) <- label_names2
+pca <- prcomp(df, retx=TRUE,scale.=TRUE)
+scores <- pca$x[,1:5]
+loadings <- pca$rotation[,1:5]
+km <- kmeans(loadings, center=2, nstart=5)
+ggdata <- data.frame(loadings, Cluster=km$cluster)
+labelprotein <- rownames(loadings)
+ggdata <- cbind(labelprotein, ggdata)
+### paper numbering
+library(grid)
+set.seed(23)
+b <- ggplot(ggdata, aes(x = PC1, y = PC2, colour = Cluster)) +
+  geom_point(aes(fill=factor(Cluster)), size=5, shape=20, pch = 21, alpha = 0.8) +
+  ggtitle(" ") +
+  stat_ellipse(aes(fill=factor(Cluster)), colour = "black", 
+               geom="polygon", level=0.95, alpha=0.2) +
+  guides(color=guide_legend("Cluster"),fill=guide_legend("Cluster")) +
+  #geom_text(aes(label=labelprotein), size=7, hjust=0.5, vjust= 1.5, alpha=0.45) +
+  theme(
+    legend.position=("none"),
+    #plot.title = element_text(size=20, face="bold", colour="black", vjust = 2, hjust=-0.07),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1),
+    axis.text.y = element_text(size = 15),
+    axis.ticks.length = unit(0.3, "cm"),
+    axis.text.x = element_text(size = 15),
+    legend.title=element_blank(),
+    axis.title.x = element_text(color="black", size=20),
+    axis.title.y = element_text(color="black", size=20)) +
+  coord_cartesian(ylim = c(-1.5, 1.5), xlim = c(-1.5, 1.5))
+print(b)
+```
+
+
+
+Plot with interval
+```{r interval, message = FALSE}
+data <- read_excel("data.xlsx")
+### preparing data for 13 models 
+compound <- data[, 5:311]
+protein <- data[, 313:351]
+pIC50 <- data[2]
+set.seed(23)
+compound = compound[, -nearZeroVar(compound)]
+compound[compound == "0"] <- -1
+CxP <- getCPI(compound, protein, type = "tensorprod")
+CxP <- as.data.frame(CxP)
+dfcompound <- names(data.frame(compound[,1:39]))
+dfprotein <- names(data.frame(protein[,1:39]))
+compoundNamecross <- rep(dfcompound, each = 39)
+proteinNamecross <- rep(dfprotein, times = 39)
+label <- paste(compoundNamecross, proteinNamecross, sep="_")
+colnames(CxP) <- label
+PxP <- getCPI(protein, protein, type = "tensorprod")
+proteinName2 <- rep(dfprotein, times = 39)
+proteinName1 <- rep(dfprotein, each = 39)
+label_protein <- paste(proteinName1, proteinName2, sep = "_")
+colnames(PxP) <- label_protein
+index <- seq(1, 1521, by = 40)
+protein_selfcross <- PxP[, -index]
+transposedIndexed_protein <- t(protein_selfcross)
+index1 <- which(duplicated(transposedIndexed_protein))
+removed_duplicated_protein <- transposedIndexed_protein[-index1, ]
+PxP <- t(removed_duplicated_protein)
+
+CxC <- getCPI(compound, compound, type = "tensorprod")
+compoundName2 <- rep(dfcompound, times = 39)
+compoundName1 <- rep(dfcompound, each = 39)
+label <- paste(compoundName1, compoundName2, sep = "_")
+colnames(CxC) <- label
+index3 <- seq(1, 1369, by = 38)
+compound_selfcross <- CxC[, -index3]
+transposedIndexed_compound <- t(compound_selfcross)
+index4 <- which(duplicated(transposedIndexed_compound))
+removed_compound <- transposedIndexed_compound[-index4, ]
+compound_finalcrossterms <- t(removed_compound)
+CxC <- compound_finalcrossterms
+
+
+C <- compound
+P <- protein
+C_P <- cbind(C, P)
+C_P_CxP_data_block_scale <- cbind(C, P, CxP) * (1/sqrt(length(C)+length(P)+length(CxP)))
+
+C_P_CxC_data_block_scale <- cbind(C, P, 
+                                  CxC) * (1/sqrt(length(C)+length(P)+length(CxC)))
+
+C_P_PxP_data_block_scale <- cbind(C, P,
+                                  PxP) * (1/sqrt(length(C)+length(P)+length(PxP)))
+
+C_P_CxP_CxC_data_block_scale <- cbind(C, P, CxP,
+                                      CxC) * (1/sqrt(length(C)+length(P)+length(CxP)+length(CxC)))
+
+C_P_CxP_PxP_data_block_scale <- cbind(C, P, CxP,
+                                      PxP) * (1/sqrt(length(C)+length(P)+length(CxP)+length(PxP)))
+
+C_P_CxC_PxP_data_block_scale <- cbind(C, P, CxC,
+                                      PxP) * (1/sqrt(length(C)+length(P)+length(CxC)+length(PxP)))
+
+C_P_CxP_CxC_PxP_data_block_scale <- cbind(C, P, CxP, CxC, PxP) * (1/sqrt(length(C)+length(P)+
+                                                                           length(CxC)+length(PxP)))
+
+
+cor_removed <- function(x) {
+  x <- x[, !apply(x, 2, function(x) length(unique(x)) ==1)]
+  raw <- cor(x)
+  raw_2 <- raw[1: ncol(raw), 1: ncol(raw)]
+  high <- findCorrelation(raw_2, cutoff = 0.7)
+  remove <- x[, -high]
+  input <- cbind(pIC50, remove)
+  return(input)
+}
+### Applying function to all the 13 descriptors block
+
+C <- cor_removed(C)
+P <- cor_removed(P)
+CxP <- cor_removed(CxP)
+CxC <- cor_removed(CxC)
+PxP <- cor_removed(PxP)
+C_P <- cor_removed(C_P)
+C_P_CxP <- cor_removed(C_P_CxP_data_block_scale)
+C_P_CxC <- cor_removed(C_P_CxC_data_block_scale)
+C_P_PxP <- cor_removed(C_P_PxP_data_block_scale)
+C_P_CxP_CxC <- cor_removed(C_P_CxP_CxC_data_block_scale)
+C_P_CxP_PxP <- cor_removed(C_P_CxP_PxP_data_block_scale)
+C_P_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
+C_P_CxP_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
+
+file <- function(x) {
+  sel <- prospectr::naes(x, k = 90, pc = 5, iter.max = 100)
+    Train <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- caret::train(pIC50 ~., data = Train,  method = "rf", tuneLength = 10,
+                trControl = ctrl)
+    model <- randomForest::randomForest(pIC50~., data = Train,
+                         mtry = tune$bestTune[[1]])
+    prediction_Internal <- predict(model, Train)
+    value <- data.frame(obs = Train$pIC50, pred = prediction_Internal)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    value$Label <- c("Internal")
+    prediction_External <- predict(model, Test)
+    value_external <- data.frame(obs = Test$pIC50, pred = prediction_External)
+    colnames(value_external) <- labeling
+    value_external$Label <- c("External")
+    results <- rbind(value, value_external)
+    return(results)
+}
+
+get_interval <- function(x) {
+  file <- file(x)
+  x <- file[,1]
+  y <- file[,2]
+  label <- file[3]
+  fit <- lm(y~x)
+  pred.int <- predict(fit, interval = "prediction")
+  pred.lower = pred.int[,2]
+  pred.upper = pred.int[,3]
+  df <- cbind(x, y, label, pred.lower, pred.upper)
+  return(df)
+}
+
+plot_graph <- function(x) {
+  ok <- get_interval(x)
+  good <- ggplot(ok, aes(x = x)) +
+    geom_point(size = 7, colour = "black", pch = 21, alpha = 0.8,
+               aes(y= y, fill = factor(Label))) +
+    geom_abline(intercept = ok$pred.lower[[1]], linetype = 2, size = 1.5, colour = "grey") +
+  geom_abline(intercept = ok$pred.upper[[1]], linetype = 2, size = 1.5, colour = "grey") +
+    theme(
+      panel.border = element_rect(linetype = "solid", colour = "black", fill =NA, size = 1),
+      axis.text.y = element_text(colour = "black", face = "bold"),
+      axis.text.x = element_text(colour = "black", face = "bold"),
+      axis.title= element_text(colour = "black", face = "bold"),
+     # axis.title.x = element_text(colour = "black", face = "bold"),
+      legend.position = ("none")) +
+    labs(list(y = expression(Predicted~pIC[50])), face = "bold") +
+    labs(list(x = expression(Experimental~pIC[50])), face = "bold") +
+    coord_cartesian(ylim = c(-2, 4), xlim = c(-2, 4))
+  return(good)
+}
+
+a <- plot_graph(C)
+print(a)
+b <- plot_graph(P)
+print(b)
+c <- plot_graph(CxP)
+print(c)
+d <- plot_graph(CxC)
+print(d)
+e <- plot_graph(PxP)
+print(e)
+f <- plot_graph(C_P)
+print(f)
+g <- plot_graph(C_P_CxP)
+print(g)
+h <- plot_graph(C_P_CxC)
+print(h)
+i <- plot_graph(C_P_PxP)
+print(i)
+j <- plot_graph(C_P_CxP_CxC)
+print(j)
+k <- plot_graph(C_P_CxP_PxP)
+print(k)
+l <- plot_graph(C_P_CxC_PxP)
+print(l)
+m <- plot_graph(C_P_CxP_CxC_PxP)
+print(m)
+
+
+#plot_grid(a, b, c, d, e, f, g, h, i, j, k, l, m,
+#          labels = c("1", "2", "3", "4", "5", "6", "7", "8", "9", 
+#                     "10", "11", "12", "13"),
+#          ncol = 4, align = "h", label_size = 12)
+
+```
+
+Feature Importance Plot
+```{r Geni_index, message = FALSE}
+
+randomForest_feature_importance <- function(x) {
+  library(doSNOW)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(8)
+  registerDoSNOW(cl)
+  
+  results <- list(100)
+  results <- foreach (i = 1:100) %dopar% {
+    sel <- prospectr::naes(x, k = 90, pc = 5, iter.max = 100)
+    myData <- x[sel$model, ]
+    Test <- x[sel$test, ]
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    tune <- caret::train(pIC50 ~., data = myData,  method = "rf", tuneLength = 10,
+                         trControl = ctrl)
+    model <- randomForest::randomForest(pIC50~., data = myData, importance = TRUE,
+                                        mtry = tune$bestTune[[1]])
+    importance <- model$importance
+    results[[i]] <- importance
+  }
+  return(results)
+  stopCluster(cl)
+}
+
+results_feature_importance_RF <- randomForest_feature_importance(C_P_CxP_CxC_PxP)
+
+df <- as.data.frame(results_feature_importance_RF)
+df <- t(apply(df, 1, round, digits = 4))
+index <- seq(2, 200, by = 2)
+df <- df[, index]
+geni <- mean_and_sd(df)
+geni <- as.data.frame(geni)
+mean <- data.frame(apply(df, 1, mean))
+sd <- data.frame(apply(df, 1, sd))
+geni_index <- cbind(mean, sd)
+colnames(geni_index) <- c("mean", "sd")
+geni_index <- geni_index[order(mean, decreasing = TRUE),]
+geni_index <- head(geni_index, 20)
+set.seed(200)
+a <- cbind(descriptors = rownames(geni_index), geni_index)
+a$descriptors <- factor(a$descriptors, levels = a[order(a$mean), "descriptors"])
+### plot
+z <- ggplot(a, aes(x = mean, y = descriptors)) +
+  geom_point(size = 4, colour = "black", fill = "red", pch = 21) +
+  geom_errorbarh(aes(xmin = mean-sd, xmax = mean+sd), colour = "black") +
+  ggtitle("") + xlab("Gini index") + ylab("") +
+  theme(
+    plot.margin = unit(c(1, 1, 1, 1), "cm"),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1),
+    axis.title.x = element_text(size = 20, face = "bold", colour = "black"))
+z + background_grid(major = "xy", minor = "none")
+
+```
+
+Scrambling Plot 
+```{r scrambling_plot, message = FALSE}
+scrambling_R2 <- function(x) {
+  library(doSNOW)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(8)
+  registerDoSNOW(cl)
+  
+  results <- list(50)
+  results <- foreach (i = 1:50) %dopar% {
+    pIC50 <- gtools::permute(x$pIC50)
+    pIC50 <- data.frame(pIC50)
+    fake_data <- cbind(pIC50, x[, 2:ncol(x)])
+    ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    tune <- caret::train(pIC50~., data = fake_data, method = "rf",
+                  trControl  = ctrl, tuneLength = 10)
+    
+    fit <- randomForest::randomForest(pIC50~., data = fake_data, mtry = tune$bestTune[[1]])
+    prediction <- predict(fit, x)
+    value <- data.frame(obs = x$pIC50, pred = prediction)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- caret::defaultSummary(value)
+   }
+  R2 <- data.frame(results)
+  R2 <- t(R2)
+  R2 <- as.numeric(R2[,2])
+  R2 <- round(R2, digits = 2)
+  return(R2)
+  stopCluster(cl)
+}
+real_R2 <- function(x) {
+  ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50~., data = x, method = "rf",
+                  trControl  = ctrl, tuneLength = 10)
+  fit <- randomForest(pIC50~., data = x, mtry = tune$bestTune[[1]])
+  prediction <- predict(fit, x)
+  value <- data.frame(obs = x$pIC50, pred = prediction)
+  labeling <- c("obs", "pred")
+  colnames(value) <- labeling
+  result <- defaultSummary(value)
+  R2 <- as.data.frame(result)
+  R2 <- R2[2, ]
+  R2 <- round(R2, digits = 2)
+  return(R2)
+}
+
+scrambling_Q2 <- function(x) {
+  library(doSNOW)
+  library(foreach)
+  library(parallel)
+  cl <- makeCluster(8)
+  registerDoSNOW(cl)
+  
+  results <- list(50)
+  results <- foreach (i = 1:50) %dopar% {
+    pIC50 <- gtools::permute(x$pIC50)
+    pIC50 <- data.frame(pIC50)
+    myData <- cbind(pIC50, x[, 2:ncol(x)])
+  k = 10
+  index <- sample(1:k, nrow(myData), replace = TRUE)
+  folds <- 1:k
+  myRes = data.frame()
+  for (j in 1:k)
+    training <- subset(myData, index %in% folds[-j])
+  testing <- subset(myData, index %in% c(j))
+  #pIC50 <- gtools::permute(training$pIC50)
+  #pIC50 <- data.frame(pIC50)
+  #fake_data <- cbind(pIC50, training[2:ncol(training)])
+  ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+    tune <- caret::train(pIC50~., data = training, method = "rf",
+                  trControl  = ctrl, tuneLength = 10)
+    
+    fit <- randomForest::randomForest(pIC50~., data = training, mtry = tune$bestTune[[1]])
+    prediction <- predict(fit, testing)
+    value <- data.frame( obs = testing$pIC50, pred = prediction)
+    value <- rbind(myRes, value)
+    labeling <- c("obs", "pred")
+    colnames(value) <- labeling
+    results[[i]] <- caret::defaultSummary(value)
+  }
+  Q2 <- data.frame(results)
+  Q2 <- t(Q2)
+  Q2 <- as.numeric(Q2[,2])
+  Q2 <- round(Q2, digits = 2)
+  return(Q2)
+  stopCluster(cl)
+}
+
+real_Q2 <- function(x) {
+  myData <- x
+  k = 10
+  index <- sample(1:k, nrow(myData), replace = TRUE)
+  folds <- 1:k
+  myRes <- data.frame()
+  for (j in 1:k)
+    training <- subset(myData, index %in% folds[-j])
+  testing <- subset(myData, index %in% c(j))
+  ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
+  tune <- train(pIC50~., data = training, method = "rf",
+                  trControl  = ctrl, tuneLength = 10)
+  fit <- randomForest(pIC50~., data = training, mtry = tune$bestTune[[1]])
+  prediction <- predict(fit, testing)
+  value <- data.frame(obs = testing$pIC50, pred = prediction)
+  value <- rbind(myRes, value)
+  labeling <- c("obs", "pred")
+  colnames(value) <- labeling
+  result <- defaultSummary(value)
+  Q2 <- as.data.frame(result)
+  Q2 <- Q2[2, ]
+  Q2 <- round(Q2, digits = 2)
+  return(Q2)
+}
+
+data_pre <- function(x) {
+  fake_R2 <- scrambling_R2(x)
+  real_R2 <- real_R2(x)
+  fake_Q2 <- scrambling_Q2(x)
+  real_Q2 <- real_Q2(x)
+  fake_R2 <- as.data.frame(fake_R2)
+  fake_R2$Label <- "Fake"
+  real_R2 <- as.data.frame(real_R2)
+  real_R2$Label <- "Real"
+  fake_Q2 <- as.data.frame(fake_Q2)
+  fake_Q2$Label <- "Fake"
+  real_Q2 <- as.data.frame(real_Q2)
+  real_Q2$Label <- "Real"
+  fake <- cbind(fake_R2, fake_Q2)
+  real <- cbind(real_R2, real_Q2)
+  combine <- data.frame(fake, real)
+  return(combine)
+}
+
+plot_scrambling <- function(x){
+  ok <- data_pre(x)
+colnames(ok) <- c("R2", "Label", "Q2", "Label", "R2", "Label", "Q2", "Label")
+R2 <- ok[c(1, 5)]
+R2 <- reshape2::melt(R2)
+R2 <- R2$value
+R2 <- data.frame(R2)
+Q2 <- ok[c(3, 7)]
+Q2 <- reshape2::melt(Q2)
+Q2 <- Q2$value
+Q2 <- data.frame(Q2)
+Label <- c("Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake", "Fake",
+           "Fake", "Fake", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real", "Real", "Real", "Real", "Real",
+           "Real", "Real", "Real", "Real")
+data <- cbind(R2, Q2, Label)
+plot <- ggplot(data, aes(x = R2, y = Q2, colour = Label)) +
+  geom_point(size = 7, colour = "black", aes(fill = factor(Label)), pch = 21, alpha = 0.8) +
+  theme(
+    legend.position = ("none"),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1)) +
+  labs(y = expression(paste(italic(Q^2)))) +
+  labs(x = expression(paste(italic(R^2)))) +
+  coord_cartesian(ylim = c(-0.2, 1.2), xlim = c(-0.2, 1.2))
+return(plot)
+}
+
+a <- plot_scrambling(C)
+print(a)
+b <- plot_scrambling(P)
+print(b)
+c <- plot_scrambling(CxP)
+print(c)
+d <- plot_scrambling(CxC)
+print(d)
+e <- plot_scrambling(PxP)
+print(e)
+f <- plot_scrambling(C_P)
+print(f)
+g <- plot_scrambling(C_P_CxP)
+print(g)
+h <- plot_scrambling(C_P_CxC)
+print(h)
+i <- plot_scrambling(C_P_PxP)
+print(i)
+j <- plot_scrambling(C_P_CxP_CxC)
+print(j)
+k <- plot_scrambling(C_P_CxP_PxP)
+print(k)
+l <- plot_scrambling(C_P_CxC_PxP)
+print(l)
+m <- plot_scrambling(C_P_CxP_CxC_PxP)
+print(m)
+
+  
+
+```
+
+
