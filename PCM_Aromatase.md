@@ -11,7 +11,6 @@ output: html_document
 Initialize:
 
 ```{.python .input}
-%%R
 library(readxl); packageVersion("readxl")
 library(prospectr); packageVersion("prospectr")
 library(Rcpi); packageVersion("Rcpi")
@@ -38,7 +37,6 @@ library(reshape); packageVersion("reshape")
 Load data:
 
 ```{.python .input}
-%%R
 url <- "https://raw.githubusercontent.com/Rnewbie/PCM_Aromatase/master/aromatase_data.xlsx"
 f = CFILE("data.xlsx", mode = "wb")
 curlPerform(url = url, writedata = f@ref, ssl.verifypeer = FALSE)
@@ -52,7 +50,6 @@ data <- read_excel("data.xlsx")
 Preapring the data set for 13 PCM models
 
 ```{.python .input}
-%%R
 ### preparing data for 13 models 
 compound <- data[, 5:311]
 protein <- data[, 313:351]
@@ -128,7 +125,6 @@ C_P_CxP_CxC_PxP <- cbind(pIC50, C_P_CxP_CxC_PxP_data_block_scale)
 Function for trianing PLS Model
 
 ```{.python .input}
-%%R
 pls_training <- function(x){
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
   tune <- train(pIC50 ~., data = x,  method = "pls", tuneLength = 10,
@@ -168,7 +164,6 @@ pls_train <- function(x) {
 Function for trianing PLS Model 10-fold cross-validation
 
 ```{.python .input}
-%%R
 pls_cross_validation <- function(x){
   results <- list(100)
   for (i in 1:100) {
@@ -211,7 +206,6 @@ pls_10_CV <- function(x) {
 Function for PLS Model testing
 
 ```{.python .input}
-%%R
 pls_cross_validation <- function(x){
   results <- list(100)
   for (i in 1:100) {
@@ -254,7 +248,6 @@ pls_10_CV <- function(x) {
 Function for ridge Model training
 
 ```{.python .input}
-%%R
 ridge_training <- function(x){
   library(ridge)
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
@@ -297,7 +290,6 @@ ridge_train <- function(x) {
 Function for ridge model 10-fold CV
 
 ```{.python .input}
-%%R
 ridge_cross_validation <- function(x){
   results <- list(100)
   for (i in 1:100) {
@@ -341,7 +333,6 @@ ridge_10_CV <- function(x) {
 Function for ridge model testing
 
 ```{.python .input}
-%%R
 ridge_testing <- function(x){
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
   tune <- train(pIC50 ~., data = x,  method = "foba", tuneLength = 10,
@@ -377,7 +368,6 @@ ridge_test <- function(x) {
 Function for Random Forest model training
 
 ```{.python .input}
-%%R
 randomForest_training <- function(x){
   library(randomForest)
   ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
@@ -420,7 +410,6 @@ randomForest_train <- function(x) {
 Function for Random Forest 10-fold Cross Validation
 
 ```{.python .input}
-%%R
 randomForest_cross_validation <- function(x){
   library(doSNOW)
   library(foreach)
@@ -471,7 +460,6 @@ randomForest_10_CV <- function(x) {
 Function for Random Forest external testing
 
 ```{.python .input}
-%%R
 randomForest_testing <- function(x){
   ctrl <- caret::trainControl(method = "repeatedcv", number = 10, repeats = 1)
   tune <- caret::train(pIC50 ~., data = x,  method = "rf", tuneLength = 10,
@@ -514,7 +502,6 @@ randomForest_test <- function(x) {
 Principal Component Analysis Score Plot (Compound)
 
 ```{.python .input}
-%%R
 data <- read_excel("data.xlsx")
 compound <- data[, 5:311]
 set.seed(122)
@@ -564,7 +551,6 @@ print(x)
 Principal Component Analysis Loading Plot (Compound)
 
 ```{.python .input}
-%%R
 data <- read_excel("data.xlsx")
 compound <- data[, 5:311]
 set.seed(122)
@@ -619,7 +605,6 @@ print(a)
 Principal Component Analysis Score Plot (Protein)
 
 ```{.python .input}
-%%R
 data <- read_excel("data.xlsx")
 protein <- data[, 313:351]
 set.seed(200)
@@ -671,7 +656,6 @@ print(y)
 Principal Component Analysis Loading Plot (Protein)
 
 ```{.python .input}
-%%R
 ### loading plot
 protein <- data[, 313:351]
 set.seed(200)
@@ -727,7 +711,6 @@ print(b)
 Plot with interval
 
 ```{.python .input}
-%%R
 data <- read_excel("data.xlsx")
 ### preparing data for 13 models 
 compound <- data[, 5:311]
@@ -911,7 +894,6 @@ print(m)
 Feature Importance Plot
 
 ```{.python .input}
-%%R
 randomForest_feature_importance <- function(x) {
   library(doSNOW)
   library(foreach)
@@ -968,7 +950,6 @@ z + background_grid(major = "xy", minor = "none")
 Scrambling Plot
 
 ```{.python .input}
-%%R
 scrambling_R2 <- function(x) {
   library(doSNOW)
   library(foreach)

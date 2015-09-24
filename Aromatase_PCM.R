@@ -952,3 +952,31 @@ randomForest_feature_importance <- function(x) {
   }
   return(results)
 }
+
+
+
+
+cor_removed <- function(x) {
+  x <- x[, !apply(x, 2, function(x) length(unique(x)) ==1)]
+  raw <- cor(x)
+  raw_2 <- raw[1: ncol(raw), 1: ncol(raw)]
+  high <- findCorrelation(raw_2, cutoff = 0.7)
+  remove <- x[, -high]
+  input <- cbind(pIC50, remove)
+  return(input)
+}
+### Applying function to all the 13 descriptors block
+
+C <- cor_removed(C)
+P <- cor_removed(P)
+CxP <- cor_removed(CxP)
+CxC <- cor_removed(CxC)
+PxP <- cor_removed(PxP)
+C_P <- cor_removed(C_P)
+C_P_CxP <- cor_removed(C_P_CxP_data_block_scale)
+C_P_CxC <- cor_removed(C_P_CxC_data_block_scale)
+C_P_PxP <- cor_removed(C_P_PxP_data_block_scale)
+C_P_CxP_CxC <- cor_removed(C_P_CxP_CxC_data_block_scale)
+C_P_CxP_PxP <- cor_removed(C_P_CxP_PxP_data_block_scale)
+C_P_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
+C_P_CxP_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
