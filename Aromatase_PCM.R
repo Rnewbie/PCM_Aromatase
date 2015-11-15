@@ -783,7 +783,22 @@ descriptors <- Model13$descriptors
 Model13 <- apply(Model13[, 2:3], 2, round, digits = 3)
 Model13 <- data.frame(descriptors, Model13)
 Model13$colour <- ifelse(Model13$mean < 0, "negative", "positive")
+x <- ggplot(Model13, aes(x = descriptors, y = mean, fill = colour)) + 
+  geom_bar(stat = "identity", colour = "black", position = position_dodge(.9)) +
+  geom_errorbar(aes(ymin = mean-sd, ymax = mean+sd), colour = "black", position = position_dodge(.9)) +
+  theme( 
+    # plot.title = element_text(size=70, face="bold", colour="black", vjust = 2, hjust = -0.145),
+    legend.position=("none"),
+    plot.margin = unit(c(1, 1, 1, 1), "cm"),
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, colour = "black", size = 20),
+    axis.text.y = element_text(colour = "black", size = 20),
+    axis.title.x= element_blank(),
+    axis.title.y = element_text(size = 20, face = "bold"),
+    panel.border = element_rect(linetype = "solid", colour = "black", fill = NA, size = 1)) +
+  ylab("PLS Coefficient") +
+  scale_fill_manual(values = c(positive = "firebrick1", negative = "steelblue"))
 
+x
 
 ### predictive models with 7.0 cutoff PCM models 
 
@@ -980,3 +995,30 @@ C_P_CxP_CxC <- cor_removed(C_P_CxP_CxC_data_block_scale)
 C_P_CxP_PxP <- cor_removed(C_P_CxP_PxP_data_block_scale)
 C_P_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
 C_P_CxP_CxC_PxP <- cor_removed(C_P_CxC_PxP_data_block_scale)
+
+
+###after feature selection PLS
+
+R2 <- c(0.88, 0.20, 0.86, 0.87, 0.22, 0.92, 0.87, 0.90, 0.87, 0.82, 0.90, 0.83, 0.84)
+Q2 <- c(0.86, 0.16, 0.61, 0.86, 0.18, 0.87, 0.69, 0.81, 0.72, 0.61, 0.72, 0.72, 0.74)
+Q2ext <- c(0.93, 0.21, 0.54, 0.93, 0.30, 0.89, 0.63, 0.88, 0.74, 0.58, 0.63, 0.79, 0.80)
+(R2 - Q2)
+(R2 - Q2ext)
+
+####after feature selection random forest
+
+R2 <- c(0.87, 0.35, 0.95, 0.88, 0.32, 0.93, 0.96, 0.96, 0.96, 0.96, 0.96, 0.94, 0.94)
+Q2 <- c(0.86, 0.25, 0.84, 0.85, 0.18, 0.85, 0.83, 0.83, 0.85, 0.84, 0.85, 0.86, 0.86)
+Q2ext <- c(0.93, 0.25, 0.90, 0.93, 0.33, 0.90, 0.89, 0.89, 0.89, 0.90, 0.88, 0.90, 0.90)
+(R2 - Q2)
+(R2 - Q2ext)
+
+## after ridge regression
+R2 <- c(0.88, 0.34, 0.96, 0.87, 0.35, 0.93, 0.91, 0.90, 0.74, 0.93, 0.78, 0.91, 0.84)
+Q2 <- c(0.86, 0.20, 0.53, 0.86, 0.19, 0.86, 0.63, 0.75, 0.70, 0.67, 0.65, 0.75, 0.78)
+Q2ext <- c(0.93, 0.17, 0.63, 0.93, 0.33, 0.87, 0.62, 0.82, 0.64, 0.63, 0.62, 0.82, 0.83)
+(R2 - Q2)
+(R2 - Q2ext)
+
+
+
